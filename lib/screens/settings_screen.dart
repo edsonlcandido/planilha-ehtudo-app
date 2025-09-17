@@ -1,6 +1,6 @@
-
-import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
+import 'package:installed_apps/app_info.dart';
+import 'package:installed_apps/installed_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -11,7 +11,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  Future<List<Application>>? _appsFuture;
+  Future<List<AppInfo>>? _appsFuture;
   Set<String> _selectedAppPackages = {};
 
   @override
@@ -20,17 +20,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _appsFuture = _loadAppsAndPreferences();
   }
 
-  Future<List<Application>> _loadAppsAndPreferences() async {
+  Future<List<AppInfo>> _loadAppsAndPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _selectedAppPackages = (prefs.getStringList('selected_apps') ?? []).toSet();
     });
-    // Retorna apenas aplicativos que não são do sistema para facilitar a seleção
-    return await DeviceApps.getInstalledApplications(
-      includeAppIcons: true,
-      includeSystemApps: false,
-      onlyAppsWithLaunchIntent: true,
-    );
+    return await InstalledApps.getInstalledApps(true, true);
   }
 
   Future<void> _onAppSelected(String packageName, bool isSelected) async {
@@ -53,7 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
       ),
-      body: FutureBuilder<List<Application>>(
+      body: FutureBuilder<List<AppInfo>>(
         future: _appsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -67,8 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           }
 
           final apps = snapshot.data!;
-          // Ordena os apps em ordem alfabética
-          apps.sort((a, b) => a.appName.toLowerCase().compareTo(b.appName.toLowerCase()));
+          apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
           return ListView.builder(
             itemCount: apps.length,
@@ -77,13 +71,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final isSelected = _selectedAppPackages.contains(app.packageName);
 
               return CheckboxListTile(
-                secondary: app is ApplicationWithIcon ? Image.memory(app.icon, width: 40, height: 40) : null,
-                title: Text(app.appName),
-                subtitle: Text(app.packageName),
+                secondary: app.icon != null ? Image.memory(app.icon!, width: 40, height: 40) : null,
+                title: Text(app.name),
+                subtitle: Text(app.packageName ?? ''),
                 value: isSelected,
                 onChanged: (bool? value) {
                   if (value != null) {
-                    _onAppSelected(app.packageName, value);
+                    _onAppSelected(app.packageName!, value);
                   }
                 },
               );
