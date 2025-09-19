@@ -38,9 +38,20 @@ class _PermissionScreenState extends State<PermissionScreen>
           await platform.invokeMethod('isNotificationListenerEnabled');
       if (isEnabled) {
         _showSnackBar('Permissão já concedida!');
+        // Start the service when permission is granted
+        _startNotificationService();
       }
     } on PlatformException catch (e) {
       print("Failed to check status: '${e.message}'.");
+    }
+  }
+
+  Future<void> _startNotificationService() async {
+    try {
+      await platform.invokeMethod('startForegroundService');
+      print('Notification service started from permission screen');
+    } on PlatformException catch (e) {
+      print("Failed to start service: '${e.message}'.");
     }
   }
 

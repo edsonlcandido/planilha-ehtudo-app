@@ -43,6 +43,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     });
     await prefs.setStringList('selected_apps', _selectedAppPackages.toList());
+    
+    // Send updated list to native side
+    try {
+      await platform.invokeMethod('setSelectedApps', {
+        'packages': _selectedAppPackages.toList(),
+      });
+      print('Updated selected apps sent to native: ${_selectedAppPackages.length} apps');
+    } on PlatformException catch (e) {
+      print('Error updating selected apps: ${e.message}');
+    }
   }
 
   Future<void> _toggleService(bool isEnabled) async {
@@ -55,11 +65,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       if (isEnabled) {
         await platform.invokeMethod('startForegroundService');
+        print('Notification service started from settings');
       } else {
         await platform.invokeMethod('stopForegroundService');
+        print('Notification service stopped from settings');
       }
     } on PlatformException catch (e) {
       print("Failed to toggle service: '${e.message}'.");
+    }
+  }
+
+  void _simulateTestNotification() {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Para testar, envie uma notificação de outro app (ex: WhatsApp, banco)'),
+          duration: Duration(seconds: 4),
+          backgroundColor: Colors.blue,
+        ),
+      );
     }
   }
 
@@ -85,8 +109,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Padding(
             padding: EdgeInsets.all(8.0),
             child: Text(
-              'Selecionar Aplicativos para Monitorar',
+              'Debug & Teste',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.bug_report),
+            title: const Text('Simular Notificação de Teste'),
+            subtitle: const Text('Gera uma notificação de teste para verificar captura'),
+            onTap: _simulateTestNotification,
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              'Selecionar Aplicativos para Monitorar (${_selectedAppPackages.length} selecionados)',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
           Expanded(
