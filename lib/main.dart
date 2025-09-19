@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:myapp/helpers/database_helper.dart';
-import 'package:myapp/screens/settings_screen.dart';
-import 'package:myapp/services/webhook_service.dart';
+import 'package:planilhaehtudo/helpers/database_helper.dart';
+import 'package:planilhaehtudo/screens/settings_screen.dart';
+import 'package:planilhaehtudo/services/webhook_service.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:myapp/permission_screen.dart';
+import 'package:planilhaehtudo/permission_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -22,7 +22,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  late Future<PermissionStatus> _permissionStatus;
+  late Future<bool> _permissionStatus;
+  static const _methodChannel = MethodChannel('com.example.myapp/control');
 
   @override
   void initState() {
@@ -46,8 +47,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  Future<PermissionStatus> _checkPermission() {
-    return Permission.notification.status;
+  Future<bool> _checkPermission() async {
+    try {
+      return await _methodChannel.invokeMethod('isNotificationListenerEnabled');
+    } on PlatformException {
+      return false;
+    }
   }
 
   @override
@@ -58,7 +63,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: FutureBuilder<PermissionStatus>(
+      home: FutureBuilder<bool>(
         future: _permissionStatus,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -67,7 +72,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             );
           }
 
-          if (snapshot.hasData && snapshot.data == PermissionStatus.granted) {
+          if (snapshot.hasData && snapshot.data == true) {
             return const HomeScreen();
           } else {
             return const PermissionScreen();

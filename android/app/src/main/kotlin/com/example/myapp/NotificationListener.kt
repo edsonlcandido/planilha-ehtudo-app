@@ -53,6 +53,10 @@ class NotificationListener : NotificationListenerService(), EventChannel.StreamH
         staticEventSink = null
     }
 
+    fun setSelectedApps(packages: List<String>) {
+        selectedApps = packages.toSet()
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
         if (sbn == null) return

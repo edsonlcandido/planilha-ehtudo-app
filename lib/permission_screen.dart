@@ -50,8 +50,8 @@ class PermissionScreen extends StatelessWidget {
                   textStyle: const TextStyle(fontSize: 16),
                 ),
                 onPressed: () {
-                  // Abre a tela de configurações de acesso à notificação
-                  Permission.notification.request();
+                  // Abre as configurações do app para o usuário conceder a permissão
+                  openAppSettings();
                 },
               ),
             ],
