@@ -75,6 +75,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _simulateTestNotification() {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Para testar, envie uma notificação de outro app (ex: WhatsApp, banco)'),
+          duration: Duration(seconds: 4),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,8 +109,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Padding(
             padding: EdgeInsets.all(8.0),
             child: Text(
-              'Selecionar Aplicativos para Monitorar',
+              'Debug & Teste',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.bug_report),
+            title: const Text('Simular Notificação de Teste'),
+            subtitle: const Text('Gera uma notificação de teste para verificar captura'),
+            onTap: _simulateTestNotification,
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              'Selecionar Aplicativos para Monitorar (${_selectedAppPackages.length} selecionados)',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
           Expanded(

@@ -337,6 +337,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           'Nenhuma transação capturada ainda.',
                           style: TextStyle(fontSize: 18, color: Colors.grey),
                         ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Verifique se:\n• O serviço está ativo nas configurações\n• Você selecionou os apps para monitorar\n• Os apps selecionados estão enviando notificações',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
                       ],
                     ),
                   )
@@ -357,7 +363,21 @@ class _HomeScreenState extends State<HomeScreen> {
                             transaction['title'] ?? 'Sem Título',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          subtitle: Text(transaction['message'] ?? 'Sem Mensagem'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(transaction['message'] ?? 'Sem Mensagem'),
+                              const SizedBox(height: 4),
+                              Text(
+                                'App: ${transaction['package'] ?? 'Desconhecido'}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
                           isThreeLine: true,
                         ),
                       );
