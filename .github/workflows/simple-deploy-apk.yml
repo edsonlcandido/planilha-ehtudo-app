@@ -1,0 +1,57 @@
+```yaml
+name: Build and Release APK
+
+on:
+  push:
+    branches: 
+      - 'release/**'  # Adicionado para capturar qualquer branch que comece com release/
+  workflow_dispatch:  # Permite acionar o workflow manualmente quando necessário
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: 'stable'
+          cache: true
+          
+      - name: Get dependencies
+        run: flutter pub get
+        
+      # Pula etapas de teste e análise de código
+        
+      - name: Build APK (Release)
+        run: flutter build apk --release
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          body: |
+            Automated release from commit ${{ github.sha }}
+            
+            ## Changes
+            - Built from branch: ${{ github.ref_name }}
+            - Commit: ${{ github.sha }}
+            
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
