@@ -98,6 +98,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _transactions = [];
   final dbHelper = DatabaseHelper.instance;
   bool _isSyncing = false;
+  bool _isListening = false;
+  String _lastNotificationTime = 'Nunca';
 
   @override
   void initState() {
@@ -105,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _refreshTransactionList();
     _startListening();
     _sendSelectedAppsToNative();
+    _startServiceIfEnabled(); // Ensure service is running
   }
 
   @override
@@ -120,8 +123,23 @@ class _HomeScreenState extends State<HomeScreen> {
       await _methodChannel.invokeMethod('setSelectedApps', {
         'packages': selectedApps,
       });
-    } on PlatformException {
-      // Handle error
+      print('Selected apps sent to native: ${selectedApps.length} apps');
+    } on PlatformException catch (e) {
+      print('Error sending selected apps: ${e.message}');
+    }
+  }
+
+  Future<void> _startServiceIfEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isServiceEnabled = prefs.getBool('is_service_enabled') ?? true; // Default to true
+    
+    if (isServiceEnabled) {
+      try {
+        await _methodChannel.invokeMethod('startForegroundService');
+        print('Notification service started');
+      } on PlatformException catch (e) {
+        print('Error starting service: ${e.message}');
+      }
     }
   }
 
@@ -133,18 +151,37 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startListening() {
+    print('Starting to listen for notifications...');
+    setState(() {
+      _isListening = true;
+    });
+    
     _notificationSubscription = _notificationChannel
         .receiveBroadcastStream()
         .listen((event) async {
+          print('Notification received: $event');
           final notification = Map<String, dynamic>.from(event);
           notification['status'] = 'pending';
           await dbHelper.addTransaction(notification);
+          
+          setState(() {
+            _lastNotificationTime = DateTime.now().toString().substring(11, 19);
+          });
+          
           _refreshTransactionList();
+        }, onError: (error) {
+          print('Error in notification stream: $error');
+          setState(() {
+            _isListening = false;
+          });
         });
   }
 
   void _stopListening() {
     _notificationSubscription?.cancel();
+    setState(() {
+      _isListening = false;
+    });
   }
 
   Future<void> _syncTransactions() async {
@@ -211,6 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     // Após retornar da tela de configurações, reenvia a lista para o lado nativo
     _sendSelectedAppsToNative();
+    _startServiceIfEnabled(); // Ensure service is running after settings change
   }
 
   @override
@@ -222,49 +260,112 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () {
+              _startListening();
+              _sendSelectedAppsToNative();
+              _startServiceIfEnabled();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Serviço de notificação reiniciado'),
+                  backgroundColor: Colors.blue,
+                ),
+              );
+            },
+            tooltip: 'Reiniciar Captura',
+          ),
+          IconButton(
             icon: const Icon(Icons.settings, color: Colors.white),
             onPressed: _navigateToSettings,
             tooltip: 'Configurações',
           ),
         ],
       ),
-      body: _transactions.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.history, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Nenhuma transação capturada ainda.',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                ],
+      body: Column(
+        children: [
+          // Status card
+          Container(
+            margin: const EdgeInsets.all(8.0),
+            child: Card(
+              color: _isListening ? Colors.green.shade50 : Colors.red.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Icon(
+                      _isListening ? Icons.check_circle : Icons.error,
+                      color: _isListening ? Colors.green : Colors.red,
+                      size: 30,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isListening ? 'Capturando Notificações' : 'Captura Inativa',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _isListening ? Colors.green.shade700 : Colors.red.shade700,
+                            ),
+                          ),
+                          Text(
+                            'Última captura: $_lastNotificationTime',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(8.0),
-              itemCount: _transactions.length,
-              itemBuilder: (context, index) {
-                final transaction = _transactions[index];
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: _getStatusColor(transaction['status']),
-                      child: _getStatusIcon(transaction['status']),
-                    ),
-                    title: Text(
-                      transaction['title'] ?? 'Sem Título',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(transaction['message'] ?? 'Sem Mensagem'),
-                    isThreeLine: true,
-                  ),
-                );
-              },
             ),
+          ),
+          // Transactions list
+          Expanded(
+            child: _transactions.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.history, size: 80, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          'Nenhuma transação capturada ainda.',
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(8.0),
+                    itemCount: _transactions.length,
+                    itemBuilder: (context, index) {
+                      final transaction = _transactions[index];
+                      return Card(
+                        elevation: 2,
+                        margin: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: _getStatusColor(transaction['status']),
+                            child: _getStatusIcon(transaction['status']),
+                          ),
+                          title: Text(
+                            transaction['title'] ?? 'Sem Título',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(transaction['message'] ?? 'Sem Mensagem'),
+                          isThreeLine: true,
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _isSyncing ? null : _syncTransactions,
         backgroundColor: Colors.deepPurple,

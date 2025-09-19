@@ -8,36 +8,49 @@ import android.content.Intent
 import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.util.Log
 import androidx.core.app.NotificationCompat
-import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.plugin.common.EventChannel
-import io.flutter.plugin.common.MethodChannel
 
-class NotificationListener : NotificationListenerService(), EventChannel.StreamHandler, FlutterPlugin {
-    private var eventSink: EventChannel.EventSink? = null
+class NotificationListener : NotificationListenerService() {
     private val NOTIFICATION_CHANNEL_ID = "com.example.myapp.service"
     private val NOTIFICATION_ID = 1
 
     companion object {
-        private const val EVENT_CHANNEL_NAME = "com.example.myapp/notifications"
-        private const val METHOD_CHANNEL_NAME = "com.example.myapp/control"
-        
-        var staticEventSink: EventChannel.EventSink? = null
+        private const val TAG = "NotificationListener"
+        var staticEventSink: NotificationEventSink? = null
         private var selectedApps = emptySet<String>()
 
         fun sendNotificationData(data: Map<String, Any?>) {
-            staticEventSink?.success(data)
+            Log.d(TAG, "Attempting to send notification data: $data")
+            staticEventSink?.sendNotification(data)
+        }
+
+        fun setSelectedApps(packages: List<String>) {
+            selectedApps = packages.toSet()
+            Log.d(TAG, "Selected apps updated: $selectedApps")
         }
     }
 
     override fun onCreate() {
         super.onCreate()
+        Log.d(TAG, "NotificationListener service created")
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(TAG, "NotificationListener service started")
         startForeground(NOTIFICATION_ID, createNotification())
         return START_STICKY
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        Log.d(TAG, "NotificationListener connected")
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        Log.d(TAG, "NotificationListener disconnected")
     }
 
     private fun createNotificationChannel() {
@@ -45,8 +58,9 @@ class NotificationListener : NotificationListenerService(), EventChannel.StreamH
             val channel = NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
                 "Serviço de Notificação",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_LOW
             )
+            channel.description = "Serviço em segundo plano para capturar notificações"
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
@@ -56,44 +70,11 @@ class NotificationListener : NotificationListenerService(), EventChannel.StreamH
         val notificationBuilder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Planilha Eh Tudo")
             .setContentText("Monitorando notificações para capturar transações.")
-            .setSmallIcon(R.mipmap.ic_launcher) // Make sure you have this icon
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
+            .setShowWhen(false)
         return notificationBuilder.build()
-    }
-
-    override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        // Setup EventChannel for streaming notifications to Flutter
-        val eventChannel = EventChannel(binding.binaryMessenger, EVENT_CHANNEL_NAME)
-        eventChannel.setStreamHandler(this)
-
-        // Setup MethodChannel for receiving commands from Flutter
-        val methodChannel = MethodChannel(binding.binaryMessenger, METHOD_CHANNEL_NAME)
-        methodChannel.setMethodCallHandler { call, result ->
-            if (call.method == "setSelectedApps") {
-                val packages = call.argument<Map<String, List<String>>>("packages")
-                selectedApps = packages?.get("packages")?.toSet() ?: emptySet()
-                result.success(null)
-            } else {
-                result.notImplemented()
-            }
-        }
-    }
-
-    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {}
-
-    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-        eventSink = events
-        staticEventSink = events
-    }
-
-    override fun onCancel(arguments: Any?) {
-        eventSink = null
-        staticEventSink = null
-    }
-
-    fun setSelectedApps(packages: List<String>) {
-        selectedApps = packages.toSet()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -101,15 +82,19 @@ class NotificationListener : NotificationListenerService(), EventChannel.StreamH
         if (sbn == null) return
 
         val packageName = sbn.packageName
+        Log.d(TAG, "Notification received from: $packageName")
 
         // Filter notifications: if the list is empty, allow all. Otherwise, only allow from selected apps.
         if (selectedApps.isNotEmpty() && packageName !in selectedApps) {
+            Log.d(TAG, "Notification filtered out - not in selected apps")
             return
         }
 
         val extras = sbn.notification.extras
         val title = extras.getString(Notification.EXTRA_TITLE)
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+
+        Log.d(TAG, "Processing notification - Title: $title, Text: $text")
 
         if (title != null && text != null) {
             val notificationData = mapOf(
@@ -118,7 +103,10 @@ class NotificationListener : NotificationListenerService(), EventChannel.StreamH
                 "message" to text,
                 "timestamp" to (System.currentTimeMillis() / 1000)
             )
+            Log.d(TAG, "Sending notification data: $notificationData")
             sendNotificationData(notificationData)
+        } else {
+            Log.d(TAG, "Notification ignored - missing title or text")
         }
     }
 }

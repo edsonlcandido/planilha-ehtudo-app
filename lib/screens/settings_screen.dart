@@ -43,6 +43,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     });
     await prefs.setStringList('selected_apps', _selectedAppPackages.toList());
+    
+    // Send updated list to native side
+    try {
+      await platform.invokeMethod('setSelectedApps', {
+        'packages': _selectedAppPackages.toList(),
+      });
+      print('Updated selected apps sent to native: ${_selectedAppPackages.length} apps');
+    } on PlatformException catch (e) {
+      print('Error updating selected apps: ${e.message}');
+    }
   }
 
   Future<void> _toggleService(bool isEnabled) async {
@@ -55,8 +65,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       if (isEnabled) {
         await platform.invokeMethod('startForegroundService');
+        print('Notification service started from settings');
       } else {
         await platform.invokeMethod('stopForegroundService');
+        print('Notification service stopped from settings');
       }
     } on PlatformException catch (e) {
       print("Failed to toggle service: '${e.message}'.");
