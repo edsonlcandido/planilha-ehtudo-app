@@ -1,4 +1,3 @@
-
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -29,8 +28,11 @@ class DatabaseHelper {
 
   Future<void> addTransaction(Map<String, dynamic> transaction) async {
     final db = await instance.database;
-    await db.insert('transactions', transaction,
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'transactions',
+      transaction,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Map<String, dynamic>>> getAllTransactions() async {

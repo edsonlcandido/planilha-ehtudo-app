@@ -1,9 +1,64 @@
-
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 
-class PermissionScreen extends StatelessWidget {
+class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
+
+  @override
+  State<PermissionScreen> createState() => _PermissionScreenState();
+}
+
+class _PermissionScreenState extends State<PermissionScreen>
+    with WidgetsBindingObserver {
+  static const platform = MethodChannel('com.example.myapp/control');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkPermissionStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissionStatus();
+    }
+  }
+
+  Future<void> _checkPermissionStatus() async {
+    try {
+      final bool isEnabled =
+          await platform.invokeMethod('isNotificationListenerEnabled');
+      if (isEnabled) {
+        _showSnackBar('Permissão já concedida!');
+      }
+    } on PlatformException catch (e) {
+      print("Failed to check status: '${e.message}'.");
+    }
+  }
+
+  Future<void> _requestPermission() async {
+    try {
+      await platform.invokeMethod('openNotificationListenerSettings');
+    } on PlatformException catch (e) {
+      print("Failed to open settings: '${e.message}'.");
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,10 +82,7 @@ class PermissionScreen extends StatelessWidget {
               const SizedBox(height: 20),
               const Text(
                 'Acesso às Notificações',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -46,13 +98,13 @@ class PermissionScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
-                onPressed: () {
-                  // Abre as configurações do app para o usuário conceder a permissão
-                  openAppSettings();
-                },
+                onPressed: _requestPermission,
               ),
             ],
           ),

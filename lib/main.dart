@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:planilhaehtudo/helpers/database_helper.dart';
 import 'package:planilhaehtudo/screens/settings_screen.dart';
 import 'package:planilhaehtudo/services/webhook_service.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:planilhaehtudo/permission_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -91,7 +90,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const _notificationChannel = EventChannel('com.example.myapp/notifications');
+  static const _notificationChannel = EventChannel(
+    'com.example.myapp/notifications',
+  );
   static const _methodChannel = MethodChannel('com.example.myapp/control');
   StreamSubscription? _notificationSubscription;
   List<Map<String, dynamic>> _transactions = [];
@@ -116,9 +117,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     final selectedApps = prefs.getStringList('selected_apps') ?? [];
     try {
-      await _methodChannel.invokeMethod('setSelectedApps', {'packages': selectedApps});
-    } on PlatformException catch (e) {
-      print("Failed to send selected apps: '${e.message}'.");
+      await _methodChannel.invokeMethod('setSelectedApps', {
+        'packages': selectedApps,
+      });
+    } on PlatformException {
+      // Handle error
     }
   }
 
@@ -130,12 +133,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startListening() {
-    _notificationSubscription = _notificationChannel.receiveBroadcastStream().listen((event) async {
-      final notification = Map<String, dynamic>.from(event);
-      notification['status'] = 'pending';
-      await dbHelper.addTransaction(notification);
-      _refreshTransactionList();
-    });
+    _notificationSubscription = _notificationChannel
+        .receiveBroadcastStream()
+        .listen((event) async {
+          final notification = Map<String, dynamic>.from(event);
+          notification['status'] = 'pending';
+          await dbHelper.addTransaction(notification);
+          _refreshTransactionList();
+        });
   }
 
   void _stopListening() {
@@ -149,11 +154,18 @@ class _HomeScreenState extends State<HomeScreen> {
       _isSyncing = true;
     });
 
-    final pendingTransactions = _transactions.where((t) => t['status'] == 'pending').toList();
+    final pendingTransactions = _transactions
+        .where((t) => t['status'] == 'pending')
+        .toList();
     if (pendingTransactions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nenhuma transação pendente para sincronizar.'), backgroundColor: Colors.blue),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nenhuma transação pendente para sincronizar.'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
       setState(() {
         _isSyncing = false;
       });
@@ -180,9 +192,16 @@ class _HomeScreenState extends State<HomeScreen> {
       _isSyncing = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Sincronização concluída: $successCount com sucesso, $failCount com falha.'), backgroundColor: failCount > 0 ? Colors.red : Colors.green),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Sincronização concluída: $successCount com sucesso, $failCount com falha.',
+          ),
+          backgroundColor: failCount > 0 ? Colors.red : Colors.green,
+        ),
+      );
+    }
   }
 
   void _navigateToSettings() async {
@@ -236,7 +255,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       backgroundColor: _getStatusColor(transaction['status']),
                       child: _getStatusIcon(transaction['status']),
                     ),
-                    title: Text(transaction['title'] ?? 'Sem Título', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    title: Text(
+                      transaction['title'] ?? 'Sem Título',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     subtitle: Text(transaction['message'] ?? 'Sem Mensagem'),
                     isThreeLine: true,
                   ),
@@ -246,10 +268,12 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _isSyncing ? null : _syncTransactions,
         backgroundColor: Colors.deepPurple,
-        child: _isSyncing 
-            ? const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white)) 
-            : const Icon(Icons.sync, color: Colors.white),
         tooltip: 'Sincronizar com Webhook',
+        child: _isSyncing
+            ? const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              )
+            : const Icon(Icons.sync, color: Colors.white),
       ),
     );
   }

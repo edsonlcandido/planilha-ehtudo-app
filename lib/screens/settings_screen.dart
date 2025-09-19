@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,8 +12,10 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const platform = MethodChannel('com.example.myapp/control');
   Future<List<AppInfo>>? _appsFuture;
   Set<String> _selectedAppPackages = {};
+  bool _isServiceEnabled = false;
 
   @override
   void initState() {
@@ -23,7 +26,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<List<AppInfo>> _loadAppsAndPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _selectedAppPackages = (prefs.getStringList('selected_apps') ?? []).toSet();
+      _selectedAppPackages =
+          (prefs.getStringList('selected_apps') ?? []).toSet();
+      _isServiceEnabled = prefs.getBool('is_service_enabled') ?? false;
     });
     return await InstalledApps.getInstalledApps(true, true);
   }
@@ -40,50 +45,100 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await prefs.setStringList('selected_apps', _selectedAppPackages.toList());
   }
 
+  Future<void> _toggleService(bool isEnabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isServiceEnabled = isEnabled;
+    });
+    await prefs.setBool('is_service_enabled', isEnabled);
+
+    try {
+      if (isEnabled) {
+        await platform.invokeMethod('startForegroundService');
+      } else {
+        await platform.invokeMethod('stopForegroundService');
+      }
+    } on PlatformException catch (e) {
+      print("Failed to toggle service: '${e.message}'.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Selecionar Aplicativos'),
+        title: const Text('Configurações'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
       ),
-      body: FutureBuilder<List<AppInfo>>(
-        future: _appsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Erro ao carregar aplicativos: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Nenhum aplicativo encontrado.'));
-          }
+      body: Column(
+        children: [
+          SwitchListTile(
+            title: const Text('Monitoramento em Segundo Plano'),
+            subtitle: const Text(
+                'Mantenha o serviço ativo para capturar notificações.'),
+            value: _isServiceEnabled,
+            onChanged: _toggleService,
+            secondary: const Icon(Icons.miscellaneous_services),
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text(
+              'Selecionar Aplicativos para Monitorar',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<AppInfo>>(
+              future: _appsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                        'Erro ao carregar aplicativos: ${snapshot.error}'),
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                      child: Text('Nenhum aplicativo encontrado.'));
+                }
 
-          final apps = snapshot.data!;
-          apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+                final apps = snapshot.data!;
+                apps.sort(
+                  (a, b) =>
+                      a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+                );
 
-          return ListView.builder(
-            itemCount: apps.length,
-            itemBuilder: (context, index) {
-              final app = apps[index];
-              final isSelected = _selectedAppPackages.contains(app.packageName);
+                return ListView.builder(
+                  itemCount: apps.length,
+                  itemBuilder: (context, index) {
+                    final app = apps[index];
+                    final isSelected =
+                        _selectedAppPackages.contains(app.packageName);
 
-              return CheckboxListTile(
-                secondary: app.icon != null ? Image.memory(app.icon!, width: 40, height: 40) : null,
-                title: Text(app.name),
-                subtitle: Text(app.packageName ?? ''),
-                value: isSelected,
-                onChanged: (bool? value) {
-                  if (value != null) {
-                    _onAppSelected(app.packageName!, value);
-                  }
-                },
-              );
-            },
-          );
-        },
+                    return CheckboxListTile(
+                      secondary: app.icon != null
+                          ? Image.memory(app.icon!, width: 40, height: 40)
+                          : null,
+                      title: Text(app.name),
+                      subtitle: Text(app.packageName),
+                      value: isSelected,
+                      onChanged: (bool? value) {
+                        if (value != null) {
+                          _onAppSelected(app.packageName, value);
+                        }
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
