@@ -20,6 +20,11 @@ Este aplicativo Flutter foi projetado para capturar notificações de aplicativo
 - `lib/helpers/database_helper.dart`: Contém a lógica para gerenciar o banco de dados SQLite.
 - `lib/services/webhook_service.dart`: Lida com o envio de dados de transação para o webhook.
 - `android/`: Contém os arquivos de configuração e código nativo específicos do Android.
+- `.github/workflows/`: Workflows do GitHub Actions para CI/CD e deploy automatizado.
+  - `deploy-apk.yml`: Workflow básico para build e deploy de APKs
+  - `advanced-deploy.yml`: Workflow avançado com builds otimizados e releases
+  - `ci.yml`: Integração contínua para desenvolvimento
+- `.github/README.md`: Documentação completa dos workflows e configurações de deploy.
 
 ## Fluxo de Trabalho
 
@@ -33,6 +38,29 @@ Este aplicativo Flutter foi projetado para capturar notificações de aplicativo
 
 ## Alterações Atuais
 
+### GitHub Actions para Deploy de APK
+- **Workflows de CI/CD**: Implementados três workflows para automatização completa:
+  - `deploy-apk.yml`: Workflow básico para deploy de APKs
+  - `advanced-deploy.yml`: Workflow avançado com builds otimizados e assinatura
+  - `ci.yml`: Integração contínua para desenvolvimento
+- **Build Automatizado**: APKs são gerados automaticamente em push/pull requests
+- **Assinatura de APK**: Suporte para assinatura de releases em produção
+- **Artefatos**: Upload automático de APKs como artefatos do GitHub
+- **Releases**: Criação automática de releases com APKs e notas detalhadas
+- **Otimizações**: Builds separados por arquitetura (ARM64, ARMv7, x86_64)
+
+### Melhorias na Configuração Android
+- **Configuração de Assinatura**: Atualizado `build.gradle.kts` para suporte a assinatura segura
+- **Gitignore**: Adicionadas entradas para arquivos sensíveis de assinatura
+- **Build Types**: Configuração otimizada para builds release e debug
+
+### Funcionalidades dos Workflows
+- **Testes Automatizados**: Execução automática de testes e análise de código
+- **Cobertura de Código**: Integração com Codecov para relatórios de cobertura
+- **Comentários em PR**: Notificações automáticas com links para APKs de teste
+- **Cache Inteligente**: Otimização de builds com cache de dependências
+
+### Anteriores
 - **Solicitação de Permissão de Notificação**: Adicionada a lógica para solicitar a permissão de notificação na `PermissionScreen`.
 - **Permissão `POST_NOTIFICATIONS`**: Adicionada a permissão `POST_NOTIFICATIONS` ao `AndroidManifest.xml` para compatibilidade com o Android 13 e superior.
 - **Correções e Melhorias**: Corrigidos vários problemas de análise estática e atualizadas as dependências desatualizadas.
