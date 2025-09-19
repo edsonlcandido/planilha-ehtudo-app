@@ -82,11 +82,11 @@ class NotificationListener : NotificationListenerService() {
         if (sbn == null) return
 
         val packageName = sbn.packageName
-        Log.d(TAG, "Notification received from: $packageName")
+        Log.d(TAG, "Notification received from: $packageName. Selected apps: $selectedApps")
 
-        // Filter notifications: if the list is empty, allow all. Otherwise, only allow from selected apps.
-        if (selectedApps.isNotEmpty() && packageName !in selectedApps) {
-            Log.d(TAG, "Notification filtered out - not in selected apps")
+        // Filter notifications: only allow notifications from selected apps.
+        if (packageName !in selectedApps) {
+            Log.d(TAG, "Notification filtered out - '$packageName' is not in the selected apps list.")
             return
         }
 
@@ -94,7 +94,7 @@ class NotificationListener : NotificationListenerService() {
         val title = extras.getString(Notification.EXTRA_TITLE)
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
 
-        Log.d(TAG, "Processing notification - Title: $title, Text: $text")
+        Log.d(TAG, "Processing notification from '$packageName' - Title: $title, Text: $text")
 
         if (title != null && text != null) {
             val notificationData = mapOf(
@@ -106,7 +106,7 @@ class NotificationListener : NotificationListenerService() {
             Log.d(TAG, "Sending notification data: $notificationData")
             sendNotificationData(notificationData)
         } else {
-            Log.d(TAG, "Notification ignored - missing title or text")
+            Log.d(TAG, "Notification from '$packageName' ignored - missing title or text")
         }
     }
 }
