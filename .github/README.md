@@ -1,6 +1,6 @@
 # GitHub Actions para Deploy de APK
 
-Este repositório contém workflows do GitHub Actions para automatizar o build e deploy de APKs do aplicativo Planilha É Htudo.
+Este repositório contém workflows do GitHub Actions para automatizar o build e deploy de APKs do aplicativo Planilha Eh Tudo.
 
 ## 📋 Workflows Disponíveis
 
